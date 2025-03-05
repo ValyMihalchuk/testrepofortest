@@ -111,7 +111,7 @@ def val_get_field  (k: field): val :=
     !q]
 
 
-notation t1 ". " k => (val_get_field k) t1
+notation t1 "!." k:1525 => (val_get_field k) t1
 
 lemma triple_get_field : ∀ (p:loc) (k: field) v,
   triple [lang| ⟨val_get_field k⟩ p]
@@ -148,7 +148,17 @@ by
     xapp triple_ptr_add_nonneg
     sby xapp
 
-notation t1 ". " k ":=" v=> (val_set_field k) t1 v
+-- notation t1:5120 "." k:5120 " := " v:5120 => (val_set_field k) t1 v
+
+syntax:max lang noWs "." noWs ident : lang
+
+macro_rules
+  | `([lang| $rcrd.$f ])              =>
+    `(trm_val (val_get_field $f) [lang| $rcrd])
+  | `([lang| $rcrd.$f := $v ])        => `(trm_val (val_set_field $f) [lang| $rcrd] [lang| $v])
+
+example (t : val) (f : field) : trm := [lang| t.f]
+
 
 def hfields_lookup (k : field) (kvs : hrecord_fields) : Option val :=
   match kvs with
@@ -241,11 +251,13 @@ by
   xtriple
   xpull
   intro z Hz
-
+  xapp (triple_get_field_hfields  _ _ _ _ M)
+  --xapp triple_get_field_hfields
+  /-
   xapp_pre
   eapply xapp_lemma; eapply (triple_get_field_hfields  _ _ _ _ M)
   rotate_right; xapp_simp; hide_mvars=>//
-  -- xapp (triple_get_field_hfields  _ _ _ _ M)
+  -- xapp (triple_get_field_hfields  _ _ _ _ M)-/
   xsimp
   { simp }
   { exact Hz }
@@ -296,9 +308,7 @@ by
   xtriple
   xpull
   intros z Hz
-  xapp_pre
-  eapply xapp_lemma; eapply (triple_set_field_hfields  _ _ _ _ _ M)
-  rotate_right; xapp_simp; hide_mvars=>//
+  xapp (triple_set_field_hfields  _ _ _ _ _ M)
   xsimp
   simp[←(hfields_update_preserves_maps_all_fields _ _ _ _ _ M)]
   apply Hz
@@ -353,17 +363,20 @@ by
 
 
 /-
-lemma eval_like_app_fix2 : ∀ v0 v1 v2 f x1 x2 t1,
+lemma eval_like_app_fix2 : ∀ (v0: val) v1 v2 f x1 x2 t1,
   v0 = val_fix f x1 (trm_fun x2 t1) →
   (x1 ≠ x2 ∧ f ≠ x2) →
-  eval_like (subst x2 v2 (subst x1 v1 (subst f v0 t1))) (v0 v1 v2) :=
+  eval_like (subst x2 v2 (subst x1 v1 (subst f v0 t1))) (trm_app (trm_app v0 v1) v2) :=
 by
   intro v0 v1 v2 f x1 x2 t1 E N1N2
-  introv R. applys* eval_app_args.
-  { applys eval_app_fix E. simpl. do 2 (rewrite var_eq_spec; case_if).
-    applys eval_fun. }
-  { applys* eval_val. }
-  { applys* eval_app_fun. }
+  intro st Q h
+  refine eval.eval_app_arg1 st ([lang| v0 v1]) ([lang| v2]) ?Q1 Q ?_ ?_ ?_
+
+  apply eval_app_args
+  { apply eval_app_fix E; simp; simp[var_eq_spec];
+    apply eval_fun. }
+  { apply eval_val. }
+  { apply eval_app_fun. }
 -/
 
   /-
